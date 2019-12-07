@@ -1,5 +1,7 @@
 package org.folio.rest.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
@@ -149,20 +151,27 @@ public class BudgetAPI implements FinanceStorageBudgets {
   private Future<Tx<Budget>> saveBudget(Tx<Budget> tx) {
     Promise<Tx<Budget>> promise = Promise.promise();
 
-    Budget budget = tx.getEntity();
-    if (budget.getId() == null) {
-      budget.setId(UUID.randomUUID()
-        .toString());
+    ObjectMapper objectMapper = new ObjectMapper();
+    Budget budget;
+    if (tx.getEntity().getId() == null) {
+      tx.getEntity().setId(UUID.randomUUID().toString());
+    }
+    try {
+      budget = objectMapper.readValue(objectMapper.writeValueAsString(tx.getEntity()), Budget.class);
+      // The budget allocated must be updated by the allocation transaction trigger, do not update here
+      budget.setAllocated(0.0);
+      pgClient.save(tx.getConnection(), BUDGET_TABLE, budget.getId(), budget, event -> {
+        if (event.failed()) {
+          HelperUtils.handleFailure(promise, event);
+        } else {
+          log.info("budget record {} was successfully created", tx.getEntity());
+          promise.complete(tx);
+        }
+      });
+    } catch (JsonProcessingException e) {
+      promise.fail(e);
     }
 
-    pgClient.save(tx.getConnection(), BUDGET_TABLE, budget.getId(), budget, event -> {
-      if (event.failed()) {
-        HelperUtils.handleFailure(promise, event);
-      } else {
-        log.info("budget record {} was successfully created", tx.getEntity());
-        promise.complete(tx);
-      }
-    });
     return promise.future();
   }
 
