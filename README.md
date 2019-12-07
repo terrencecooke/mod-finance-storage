@@ -26,6 +26,11 @@ java -jar target/mod-finance-fat.jar -Dhttp.port=8081 embed_postgres=true
 
 >Note that the above command launches an embedded Postgres server and is accessible using the default creds found in the *Credentials* section [here](https://github.com/folio-org/raml-module-builder).
 
+### Distributed Transactions
+Many APIs in the project require some operations to be done in transactions, if any of them fail all the actions will be rolled back. Few of them are:
+* While creating a budget, if allocation > 0 , an allocation transaction is created - If the transaction creation fails then budget creation is rolled back too
+
+
 ## API Documentation
 
 When running in standalone mode, you may access the module's API docs through the following links:

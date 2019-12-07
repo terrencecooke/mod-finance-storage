@@ -17,6 +17,8 @@ import java.util.concurrent.TimeoutException;
 import javax.ws.rs.Path;
 
 import org.apache.commons.io.IOUtils;
+import org.folio.rest.jaxrs.model.Transaction;
+import org.folio.rest.jaxrs.model.TransactionCollection;
 import org.folio.rest.utils.TestEntities;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -235,5 +237,18 @@ public abstract class TestBase {
 
   static String getUriPath(Class<?> clazz) {
     return clazz.getAnnotation(Path.class).value();
+  }
+
+  public void verifyAndDeleteBudgetAllocationTransactions() throws MalformedURLException {
+    Response response = getData(TestEntities.TRANSACTION.getEndpoint() + "?query=transactionType=Allocation");
+    TransactionCollection transactions = response.getBody()
+      .as(TransactionCollection.class);
+    for (Transaction transaction : transactions.getTransactions()) {
+      deleteData(TestEntities.TRANSACTION.getEndpointWithId(), transaction
+        .getId()).then()
+          .log()
+          .ifValidationFails()
+          .statusCode(204);
+    }
   }
 }

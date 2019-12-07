@@ -8,13 +8,12 @@ import static org.folio.rest.utils.TenantApiTestUtil.deleteTenant;
 import static org.folio.rest.utils.TenantApiTestUtil.postToTenant;
 import static org.folio.rest.utils.TenantApiTestUtil.prepareTenant;
 import static org.folio.rest.utils.TenantApiTestUtil.prepareTenantBody;
-import static org.folio.rest.utils.TestEntities.BUDGET;
 import static org.folio.rest.utils.TestEntities.FUND_TYPE;
-
+import static org.folio.rest.utils.TestEntities.FISCAL_YEAR;
 import java.net.MalformedURLException;
 
-import org.folio.rest.jaxrs.model.Budget;
-import org.folio.rest.jaxrs.model.BudgetCollection;
+import org.folio.rest.jaxrs.model.FiscalYear;
+import org.folio.rest.jaxrs.model.FiscalYearCollection;
 import org.folio.rest.utils.TestEntities;
 import org.junit.jupiter.api.Test;
 
@@ -94,15 +93,15 @@ public class TenantSampleDataTest extends TestBase {
         .assertThat()
         .statusCode(201);
 
-      Response response = getData(BUDGET.getEndpoint(), PARTIAL_TENANT_HEADER)
+      Response response = getData(FISCAL_YEAR.getEndpoint(), PARTIAL_TENANT_HEADER)
         .then()
           .extract()
           .response();
 
-      BudgetCollection budgetCollection = new JsonObject(response.asString()).mapTo(BudgetCollection.class);
+      FiscalYearCollection fiscalYearCollection = new JsonObject(response.asString()).mapTo(FiscalYearCollection.class);
 
-      for (Budget budget : budgetCollection.getBudgets()) {
-        deleteData(BUDGET.getEndpointWithId(), budget.getId(), PARTIAL_TENANT_HEADER);
+      for (FiscalYear fiscalYear : fiscalYearCollection.getFiscalYears()) {
+        deleteData(FISCAL_YEAR.getEndpointWithId(), fiscalYear.getId(), PARTIAL_TENANT_HEADER);
       }
 
       postToTenant(PARTIAL_TENANT_HEADER, prepareTenantBody())

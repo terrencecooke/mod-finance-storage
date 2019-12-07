@@ -12,18 +12,16 @@ import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 
+import io.vertx.core.json.JsonObject;
 import java.net.MalformedURLException;
 import java.time.Instant;
 import java.util.Date;
-
 import org.folio.rest.jaxrs.model.Budget;
 import org.folio.rest.jaxrs.model.BudgetCollection;
 import org.folio.rest.jaxrs.model.FiscalYear;
 import org.folio.rest.jaxrs.model.Fund;
 import org.folio.rest.jaxrs.model.Ledger;
 import org.junit.jupiter.api.Test;
-
-import io.vertx.core.json.JsonObject;
 
 public class LedgerFundBudgetStatusTest extends TestBase {
 
@@ -67,6 +65,8 @@ public class LedgerFundBudgetStatusTest extends TestBase {
     BudgetCollection budgetCollection = getData(BUDGET.getEndpoint() + "?query=budgetStatus==Frozen").as(BudgetCollection.class);
     assertThat(budgetCollection.getBudgets(), hasSize(1));
     assertThat(budgetCollection.getBudgets().get(0).getName(), equalTo("current"));
+
+    verifyAndDeleteBudgetAllocationTransactions();
 
     deleteDataSuccess(BUDGET.getEndpointWithId(), budget1Id);
     deleteDataSuccess(BUDGET.getEndpointWithId(), budget2Id);
@@ -156,6 +156,8 @@ public class LedgerFundBudgetStatusTest extends TestBase {
 
     Budget fund2BudgetFromDB = getDataById(BUDGET.getEndpointWithId(), fund2BudgetId).as(Budget.class);
     assertThat(fund2BudgetFromDB.getBudgetStatus(), is(Budget.BudgetStatus.ACTIVE));
+
+    verifyAndDeleteBudgetAllocationTransactions();
 
     deleteDataSuccess(BUDGET.getEndpointWithId(), fund1BudgetId);
     deleteDataSuccess(BUDGET.getEndpointWithId(), fund2BudgetId);

@@ -10,9 +10,12 @@ import static org.folio.rest.utils.TestEntities.GROUP_FUND_FY;
 import static org.folio.rest.utils.TestEntities.LEDGER;
 import static org.folio.rest.utils.TestEntities.TRANSACTION;
 
+import io.restassured.response.Response;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import java.net.MalformedURLException;
 import java.util.stream.Stream;
-
 import org.folio.rest.utils.TestEntities;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.MethodOrderer;
@@ -21,11 +24,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import io.restassured.response.Response;
-import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class EntitiesCrudTest extends TestBase {
@@ -87,6 +85,12 @@ public class EntitiesCrudTest extends TestBase {
       .response()
       .as(testEntity.getClazz()));
     testAllFieldsExists(responseJson, sampleJson);
+
+    //verify allocation transaction was created for budget and delete it
+    if(testEntity.name().equals(TestEntities.BUDGET.name())) {
+      verifyAndDeleteBudgetAllocationTransactions();
+    }
+
   }
 
   @ParameterizedTest
