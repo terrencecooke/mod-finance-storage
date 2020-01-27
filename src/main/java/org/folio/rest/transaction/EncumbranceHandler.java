@@ -179,7 +179,11 @@ public class EncumbranceHandler extends AllOrNothingHandler {
               tmpTransaction.setAmount(newAmount);
               double newAwaitingPayment = sumMoney(budget.getAwaitingPayment(), tmpTransaction.getEncumbrance().getAmountAwaitingPayment(), currency);
               newAwaitingPayment = subtractMoney(newAwaitingPayment, existingTransaction.getEncumbrance().getAmountAwaitingPayment(), currency);
-              budget.setAwaitingPayment(newAwaitingPayment);
+              if(newAwaitingPayment < 0.00) {
+                budget.setAwaitingPayment(0d);
+              } else {
+                budget.setAwaitingPayment(newAwaitingPayment);
+              }
             }
           }
         });
