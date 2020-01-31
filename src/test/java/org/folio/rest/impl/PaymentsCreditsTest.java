@@ -49,6 +49,7 @@ class PaymentsCreditsTest extends TestBase {
     Transaction paymentEncumbranceBefore = jsonTx.mapTo(Transaction.class);
     paymentEncumbranceBefore.getEncumbrance()
       .setSourcePurchaseOrderId(orderId);
+//    paymentEncumbranceBefore.getEncumbrance().setAmountAwaitingPayment(100d);
 
     Transaction creditEncumbranceBefore = jsonTx.mapTo(Transaction.class);
     creditEncumbranceBefore.getEncumbrance()
@@ -80,8 +81,9 @@ class PaymentsCreditsTest extends TestBase {
         .getId();
 
     Budget budgetBefore = getBudgetAndValidate(budgetEndpointWithQueryParams);
-
-    log.info("-------- Retrieved budgetBefore ----");
+//    budgetBefore.setAllocated(100d);
+    log.info("-------- Retrieved budgetBefore ---- budgetBefore.getAwaitingPayment() -- " + budgetBefore.getAwaitingPayment());
+    log.info("-------- Retrieved budgetBefore ---- budgetBefore.getAllocated() -- " + budgetBefore.getAllocated());
     
     JsonObject paymentjsonTx = new JsonObject(getFile(PAYMENT_SAMPLE));
     paymentjsonTx.remove("id");
@@ -165,7 +167,8 @@ class PaymentsCreditsTest extends TestBase {
 
     Budget budgetAfter = getBudgetAndValidate(budgetEndpointWithQueryParams);
 
-    log.info(" --- budget after --- ");
+    log.info("-------- Retrieved budgetAfter ---- budgetAfter.getAwaitingPayment() -- " + budgetAfter.getAwaitingPayment());
+    log.info("-------- Retrieved budgetAfter ---- budgetAfter.getAllocated() -- " + budgetAfter.getAllocated());
     
     // awaiting payment must decreases by payment amount
     assertEquals(0d, subtractValues(budgetAfter.getAwaitingPayment(), budgetBefore.getAwaitingPayment()));
