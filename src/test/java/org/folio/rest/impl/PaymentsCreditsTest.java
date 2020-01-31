@@ -26,15 +26,10 @@ import org.folio.rest.jaxrs.model.OrderTransactionSummary;
 import org.folio.rest.jaxrs.model.Transaction;
 import org.junit.jupiter.api.Test;
 
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
-
 class PaymentsCreditsTest extends TestBase {
   private static final String CREDIT_SAMPLE = "data/transactions/credits/credit_CANHIST_30121.json";
   private static final String PAYMENT_SAMPLE = "data/transactions/payments/payment_ENDOW-SUBN_30121.json";
 
-  Logger log = LoggerFactory.getLogger(this.getClass());
-  
   @Test
   void testCreatePaymentsCreditsAllOrNothing() throws MalformedURLException {
     prepareTenant(TRANSACTION_TENANT_HEADER, true, true);
@@ -49,7 +44,6 @@ class PaymentsCreditsTest extends TestBase {
     Transaction paymentEncumbranceBefore = jsonTx.mapTo(Transaction.class);
     paymentEncumbranceBefore.getEncumbrance()
       .setSourcePurchaseOrderId(orderId);
-//    paymentEncumbranceBefore.getEncumbrance().setAmountAwaitingPayment(100d);
 
     Transaction creditEncumbranceBefore = jsonTx.mapTo(Transaction.class);
     creditEncumbranceBefore.getEncumbrance()
@@ -60,7 +54,6 @@ class PaymentsCreditsTest extends TestBase {
     String fY = paymentEncumbranceBefore.getFiscalYearId();
     String fromFundId = paymentEncumbranceBefore.getFromFundId();
 
-    log.info("-------- Prepared 2 encumbrances ----");
     // prepare budget queries
     String budgetEndpointWithQueryParams = String.format(BUDGETS_QUERY, fY, fromFundId);
 
@@ -81,10 +74,7 @@ class PaymentsCreditsTest extends TestBase {
         .getId();
 
     Budget budgetBefore = getBudgetAndValidate(budgetEndpointWithQueryParams);
-//    budgetBefore.setAllocated(100d);
-    log.info("-------- Retrieved budgetBefore ---- budgetBefore.getAwaitingPayment() -- " + budgetBefore.getAwaitingPayment());
-    log.info("-------- Retrieved budgetBefore ---- budgetBefore.getAllocated() -- " + budgetBefore.getAllocated());
-    
+
     JsonObject paymentjsonTx = new JsonObject(getFile(PAYMENT_SAMPLE));
     paymentjsonTx.remove("id");
 
@@ -101,8 +91,6 @@ class PaymentsCreditsTest extends TestBase {
         .as(Transaction.class)
         .getId();
 
-    log.info(" ---- paymentEncumbrance transaction ---- ");
-    
     // payment does not appear in transaction table
     getDataById(TRANSACTION.getEndpointWithId(), paymentId, TRANSACTION_TENANT_HEADER).then()
       .statusCode(404);
@@ -123,8 +111,6 @@ class PaymentsCreditsTest extends TestBase {
         .as(Transaction.class)
         .getId();
 
-    log.info("-------- creditEncumbrance transaction ----");
-    
     // 2 transactions(each for a payment and credit) appear in transaction table
     getDataById(TRANSACTION.getEndpointWithId(), paymentId, TRANSACTION_TENANT_HEADER).then()
       .statusCode(200)
@@ -146,8 +132,6 @@ class PaymentsCreditsTest extends TestBase {
           .extract()
           .as(Transaction.class);
 
-    log.info("-------- After payment and credit transaction ----");
-    
     // Encumbrance Changes for payment
     assertEquals(-payment.getAmount(), subtractValues(paymentEncumbranceAfter.getEncumbrance()
       .getAmountAwaitingPayment(),
@@ -167,9 +151,6 @@ class PaymentsCreditsTest extends TestBase {
 
     Budget budgetAfter = getBudgetAndValidate(budgetEndpointWithQueryParams);
 
-    log.info("-------- Retrieved budgetAfter ---- budgetAfter.getAwaitingPayment() -- " + budgetAfter.getAwaitingPayment());
-    log.info("-------- Retrieved budgetAfter ---- budgetAfter.getAllocated() -- " + budgetAfter.getAllocated());
-    
     // awaiting payment must decreases by payment amount
     assertEquals(0d, subtractValues(budgetAfter.getAwaitingPayment(), budgetBefore.getAwaitingPayment()));
     // encumbered must increase by credit amount
