@@ -1,5 +1,6 @@
 package org.folio.rest.transaction;
 
+import static io.vertx.ext.sql.TransactionIsolation.SERIALIZABLE;
 import static java.util.stream.Collectors.toList;
 import static org.folio.rest.impl.BudgetAPI.BUDGET_TABLE;
 import static org.folio.rest.impl.FinanceStorageAPI.LEDGERFY_TABLE;
@@ -146,22 +147,28 @@ public abstract class AllOrNothingHandler extends AbstractTransactionHandler {
       Function<Tx<List<Transaction>>, Future<Tx<List<Transaction>>>> processTransactions) {
     try {
       handleValidationError(transaction);
+      Tx<Transaction> tx = new Tx<>(transaction, getPostgresClient());
       return getExistentBudget(transaction)
         .compose(budget -> checkTransactionRestrictions(transaction, budget))
-        .compose(v -> getAndCheckTransactionSummary(transaction).compose(summary -> createTempTransaction(transaction).map(summary)))
-        .compose(summary -> getTempTransactions(summary).compose(transactions -> {
-          Promise<Void> promise = Promise.promise();
-          try {
-            if (transactions.size() == getNumTransactions(summary, transaction)) {
-              return moveFromTempToPermanentTable(processTransactions, transactions, summary);
-            } else {
-              promise.complete();
-            }
-          } catch (Exception e) {
-            promise.fail(new HttpStatusException(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()));
-          }
-          return promise.future();
-        }));
+        .compose(v -> getAndCheckTransactionSummary(transaction)
+          .compose(summary -> tx.startTx(SERIALIZABLE)
+            .compose(this::createTempTransaction)
+            .compose(transactions -> tx.endTx())
+            .compose(tx1 -> getTempTransactions(transaction))
+            .compose(transactions -> {
+              Promise<Void> promise = Promise.promise();
+              try {
+                if (transactions.size() == getNumTransactions(summary, transaction)) {
+                  return moveFromTempToPermanentTable(processTransactions, transactions, summary);
+                } else {
+                  promise.complete();
+                }
+              } catch (Exception e) {
+                promise.fail(new HttpStatusException(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()));
+              }
+              return promise.future();
+            }))
+        );
     } catch (HttpStatusException e) {
       return Future.failedFuture(e);
     }
@@ -237,9 +244,9 @@ public abstract class AllOrNothingHandler extends AbstractTransactionHandler {
   }
 
 
-  private Future<Transaction> createTempTransaction(Transaction transaction) {
-    Promise<Transaction> promise = Promise.promise();
-
+  private Future<Tx<Transaction>> createTempTransaction(Tx<Transaction> tx) {
+    Promise<Tx<Transaction>> promise = Promise.promise();
+    Transaction transaction = tx.getEntity();
     if (transaction.getId() == null) {
       transaction.setId(UUID.randomUUID().toString());
     }
@@ -251,17 +258,17 @@ public abstract class AllOrNothingHandler extends AbstractTransactionHandler {
         params.add(transaction.getId());
         params.add(pojo2json(transaction));
 
-        getPostgresClient().execute(createTempTransactionQuery(), params, reply -> {
+        tx.getPgClient().execute(tx.getConnection(), createTempTransactionQuery(), params, reply -> {
           if (reply.failed()) {
             log.error("Transaction creation with id={} failed", reply.cause(), transaction.getId());
-            handleFailure(promise, reply);
+            tx.rollbackTransaction().onComplete(result -> handleFailure(promise, reply));
           } else {
             log.debug("New transaction with id={} successfully created", transaction.getId());
-            promise.complete(transaction);
+            promise.complete(tx);
           }
         });
       } catch (Exception e) {
-        promise.fail(new HttpStatusException(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()));
+        tx.rollbackTransaction().onComplete(result -> promise.fail(new HttpStatusException(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage())));
       }
 
     return promise.future();
@@ -288,14 +295,14 @@ public abstract class AllOrNothingHandler extends AbstractTransactionHandler {
     }
   }
 
-  private Future<List<Transaction>> getTempTransactions(JsonObject summary) {
+  private Future<List<Transaction>> getTempTransactions(Transaction transaction) {
     Promise<List<Transaction>> promise = Promise.promise();
-
-    Criterion criterion = getTransactionBySummaryIdCriterion(summary.getString(ID_FIELD_NAME));
+    String summaryId = getSummaryId(transaction);
+    Criterion criterion = getTransactionBySummaryIdCriterion(summaryId);
 
     getPostgresClient().get(temporaryTransactionTable, Transaction.class, criterion, false, false, reply -> {
       if (reply.failed()) {
-        log.error("Failed to extract temporary transaction by summary id={}", reply.cause(), summary.getString(ID_FIELD_NAME));
+        log.error("Failed to extract temporary transaction by summary id={}", reply.cause(), summaryId);
         handleFailure(promise, reply);
       } else {
         List<Transaction> transactions = reply.result()

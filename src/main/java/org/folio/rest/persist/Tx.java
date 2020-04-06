@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.ext.sql.SQLConnection;
+import io.vertx.ext.sql.TransactionIsolation;
 
 public class Tx<T> {
 
@@ -43,6 +44,17 @@ public class Tx<T> {
     pgClient.startTx(connectionAsyncResult -> {
       this.sqlConnection = connectionAsyncResult;
       promise.complete(this);
+    });
+
+    return promise.future();
+  }
+
+  public Future<Tx<T>> startTx(TransactionIsolation transactionIsolation) {
+    Promise<Tx<T>> promise = Promise.promise();
+
+    pgClient.startTx(connectionAsyncResult -> {
+      this.sqlConnection = connectionAsyncResult;
+      this.sqlConnection.result().setTransactionIsolation(transactionIsolation, event -> promise.complete(this));
     });
 
     return promise.future();
